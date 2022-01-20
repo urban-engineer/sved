@@ -1,0 +1,14 @@
+{
+    "rabbitmq": {
+        "broker": "broker_host",
+        "broker_port": "5672",
+        "queue": "sved"
+    },
+    "paths": {
+        "input": "/path/to/inputs",
+        "output": "/path/to/outputs"
+    },
+    "flags": {
+        "auto-delete": false
+    }
+}

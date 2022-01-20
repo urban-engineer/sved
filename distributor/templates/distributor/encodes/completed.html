@@ -1,0 +1,59 @@
+{% extends "bootstrap-base.html" %}
+
+{% load static %}
+{% load distributor_extras %}
+
+{% block title %}Completed Encodes{% endblock %}
+
+{% block main %}
+    <div class="d-flex">
+        <div class="p-2 flex-shrink-1">
+            <img role="button" data-bs-toggle="collapse" data-bs-target=".multi-collapse" aria-expanded="true" aria-controls="{{ profile_tables }}" src="{% static 'distributor/collapse.png' %}" alt="Collapse button">
+        </div>
+        <div class="p-2 flex-shrink-1">
+            <h3>Completed Encodes</h3>
+        </div>
+    </div>
+
+    {% for profile, profile_information in jobs_complete.items %}
+        <div class="d-flex">
+            <div class="p-2 flex-shrink-1">
+                <img role="button" data-bs-toggle="collapse" data-bs-target="#table_{{ profile_information.id }}" aria-expanded="true" aria-controls="table_{{ profile_information.id }}" src="{% static 'distributor/collapse_small.png' %}" alt="Collapse button">
+            </div>
+            <div class="p-2 flex-shrink-1">
+                <h5>{{ profile }}</h5>
+            </div>
+        </div>
+        <div class="border border-secondary border-2 m-2 p-2 collapse multi-collapse show" id="table_{{ profile_information.id }}">
+            {% comment %}
+                TODO: figure out if it'd be useful to make a profile info table
+            {% endcomment %}
+
+            {% comment %} Profile jobs {% endcomment %}
+            <table class="table table-sm mb-1">
+                <thead class="thead-dark">
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">File Name</th>
+                        <th scope="col">File Duration</th>
+                        <th scope="col">Encode Duration</th>
+                        <th scope="col">Conversion Rate</th>
+                        <th scope="col">Worker</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in profile_information.jobs %}
+                        <tr id="{{ job.id }}_row">
+                            <td><code>{{ job.id }}</code></td>
+                            <td><code>{{ job.name }}</code></td>
+                            <td>{{ job.duration|seconds_to_duration }}</td>
+                            <td>{{ job.encode_start_datetime|datetime_duration:job.encode_end_datetime }}</td>
+                            <td><code>{% conversion_rate job.duration job.encode_start_datetime job.encode_end_datetime %}</code></td>
+                            <td>{{ job.worker }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endfor %}
+{% endblock %}
