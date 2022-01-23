@@ -194,8 +194,6 @@ def index(request):
             file_info = _get_file_info(pathlib.Path(import_directory, file))
 
             # Put the file in the DB
-            # TODO: Find out what happens when we add a file again after encoding it, same profile and all
-            # (no issues with different profiles, but the above case would result in a "duplicate" row)
             file = distributor.models.File(
                 name=file,
                 path=str(import_directory),
