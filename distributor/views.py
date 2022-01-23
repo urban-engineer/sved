@@ -89,6 +89,84 @@ def _get_ffprobe_stats(file_path: pathlib.Path) -> dict:
     return json.loads("\n".join([x for x in out if x]))
 
 
+def _get_fame_count(file_path: pathlib.Path) -> int:
+    """
+    Helper to get the frame count of a provided video.  Better to use _get_duration_and_frame_count since it's
+    one invocation of ffprobe for more information.
+
+    :param file_path: path to video file to get info for
+    :return: count of frames as an int
+    """
+    ffprobe_template = "ffprobe -v error -select_streams v:0 -count_packets -show_entries"
+    ffprobe_template += " stream=nb_read_packets -of csv=p=0 \"{}\""
+    ffprobe_command = ffprobe_template.format(file_path)
+
+    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
+    if code != 0:
+        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
+
+    return int(out[0])
+
+
+def _get_duration(file_path: pathlib.Path) -> float:
+    """
+    Helper to get the duration (in seconds) of a provided video.  Better to use _get_duration_and_frame_count since it's
+    one invocation of ffprobe for more information.
+
+    :param file_path: path to video file to get info for
+    :return: duration of video as a float
+    """
+    ffprobe_template = "ffprobe -v error -select_streams v:0 -show_entries format=duration -of csv=p=0 \"{}\""
+    ffprobe_command = ffprobe_template.format(file_path)
+
+    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
+    if code != 0:
+        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
+
+    return float(out[0])
+
+
+def _get_duration_and_frame_count(file_path: pathlib.Path) -> (float, int):
+    """
+    Helper to get the duration (in seconds) and frame count of a provided video.
+
+    :param file_path: path to video file to get info for
+    :return: duration of video as a float and frame count as an int
+    """
+    ffprobe_template = "ffprobe -v error -count_packets -show_entries stream=nb_read_packets"
+    ffprobe_template += " -show_entries format=duration -of csv=p=0 \"{}\""
+    ffprobe_command = ffprobe_template.format(file_path)
+
+    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
+    if code != 0:
+        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
+
+    return float(out[0]), int(out[1])
+
+
+def _get_file_info(file_path: pathlib.Path) -> dict:
+    ffprobe_template = "ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=avg_frame_rate"
+    ffprobe_template += " -show_entries stream=nb_read_packets -show_entries format=duration -print_format json \"{}\""
+    ffprobe_command = ffprobe_template.format(file_path)
+
+    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
+    if code != 0:
+        if out:
+            log.debug(out)
+        if err:
+            log.error(err)
+        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
+
+    output_dict = json.loads("\n".join(out))
+    frame_rate_raw = output_dict["streams"][0]["avg_frame_rate"]
+
+    return {
+        "frame_rate": round(float(frame_rate_raw.split("/")[0])/float(frame_rate_raw.split("/")[1]), 3),
+        "frame_count": int(output_dict["streams"][0]["nb_read_packets"]),
+        "duration": float(output_dict["format"]["duration"])
+    }
+
+
 def _format_size(size_bytes: int) -> str:
     if size_bytes == 0:
         return "0B"
@@ -105,41 +183,15 @@ def index(request):
     import_directory = config.load_input_directory()
     output_directory = config.load_output_directory()
 
-    # Show a display under the "Submit" button on the index page, something like:
-    #  <profile>
-    #    <file 1>
-    #    <file 2>
-    #    ...
-    #  <profile>
-    #    <file 1>
-    #    <file 2>
-    #    ...
-    #
-    # Then a second submit button that submits those for auto-import
-    # And then change behavior so a submit of "manual" files sends the user to the jobs page.
-
     if request.method == "POST":
+        if not request.POST.get("profile"):
+            return HttpResponse("Missing profile response", status=400)
+        profile = distributor.models.Profile.objects.filter(pk=request.POST.get("profile")).first()
+
         for file in request.POST.getlist("files_to_scan"):
             log.debug("Scanning [{}]".format(file))
-            ffprobe_command = "ffprobe -v error -show_entries format=duration"
-            ffprobe_command += " -of default=noprint_wrappers=1:nokey=1 \"{}\"".format(import_directory.joinpath(file))
-            ffprobe_output = subprocess.run(
-                ffprobe_command.format(import_directory.joinpath(file)),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT
-            )
 
-            if not request.POST.get("profile"):
-                return HttpResponse("Missing profile response", status=400)
-
-            profile = distributor.models.Profile.objects.filter(pk=request.POST.get("profile")).first()
-
-            # Encountered a few files where there was some extra output here delimited by new lines, so, handling that.
-            # (Dunno how that happened but even re-adding statistics via mkvpropedit didn't change it)
-            if len(ffprobe_output.stdout.splitlines(keepends=False)) > 1:
-                duration = float(ffprobe_output.stdout.splitlines(keepends=False)[0])
-            else:
-                duration = float(ffprobe_output.stdout)
+            file_info = _get_file_info(pathlib.Path(import_directory, file))
 
             # Put the file in the DB
             # TODO: Find out what happens when we add a file again after encoding it, same profile and all
@@ -147,10 +199,12 @@ def index(request):
             file = distributor.models.File(
                 name=file,
                 path=str(import_directory),
-                duration=duration,
+                duration=file_info["duration"],
                 profile=profile,
                 status="created",
-                creation_datetime=timezone.now()
+                creation_datetime=timezone.now(),
+                frame_count=file_info["frame_count"],
+                frame_rate=file_info["frame_rate"]
             )
             file.save()
 
@@ -305,7 +359,7 @@ def api_file_detail(request, file_id: int):
             file.status = "in progress"
 
         file.progress = progress
-        file.fps = fps
+        file.encode_fps = fps
         file.eta = eta
         file.save()
     elif request.method == "GET":
@@ -397,7 +451,7 @@ def api_file(request, file_id: int):
             file.worker = request.headers.get("Worker")
             file.status = "in progress"
             file.progress = 0.0
-            file.fps = 0.0
+            file.encode_fps = 0.0
             file.eta = -1
             file.encode_start_datetime = timezone.now()
             file.save()

@@ -6,7 +6,7 @@ import distributor.models
 # Customizing Admin Panel
 class FileAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "name", "duration", "profile", "status", "worker", "progress", "fps",
+        "id", "name", "duration", "profile", "status", "worker", "progress", "encode_fps",
         "creation_datetime", "encode_start_datetime", "encode_end_datetime"
     )
 

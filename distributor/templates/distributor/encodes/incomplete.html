@@ -30,9 +30,11 @@
                     <th scope="col">ID</th>
                     <th scope="col">File Name</th>
                     <th scope="col">File Duration</th>
+                    <th scope="col">File Frame Count</th>
+                    <th scope="col">File FPS</th>
                     <th scope="col">Profile</th>
                     <th scope="col">Status</th>
-                    <th scope="col">Average FPS</th>
+                    <th scope="col">Average Encode FPS</th>
                     <th scope="col">ETA</th>
                     <th scope="col">Worker</th>
                 </tr>
@@ -43,6 +45,8 @@
                         <td><code>{{ job.id }}</code></td>
                         <td><code>{{ job.name }}</code></td>
                         <td>{{ job.duration|seconds_to_duration }}</td>
+                        <td>{{ job.frame_count }}</td>
+                        <td>{{ job.frame_rate }}</td>
                         <td><code>{{ job.profile.name }}</code></td>
                         <td id="{{ job.id }}_status_row">
                             <div class="progress">
@@ -51,7 +55,7 @@
                         </td>
                         <td id="{{ job.id }}_fps">
                             {% if job.status == "in progress" and job.eta > 0 %}
-                                {{ job.fps }}
+                                {{ job.encode_fps }}
                             {% endif %}
                         </td>
                         <td id="{{ job.id }}_eta">
@@ -190,7 +194,7 @@
                                 let in_progress_row_fps_cell = in_progress_row.insertCell()
                                 in_progress_row_fps_cell.id = item.id + "_fps"
                                 if (item.eta > 0) {
-                                    in_progress_row_fps_cell.innerText = item.fps
+                                    in_progress_row_fps_cell.innerText = item.encode_fps
                                 }
 
                                 // ETA cell
@@ -235,7 +239,7 @@
                                 item_progress_bar.setAttribute("aria-valuenow", item.progress)
                                 item_progress_bar.setAttribute("style", "width: " + item.progress + "%")
                                 document.getElementById(item.id + "_eta").innerText = new Date(item.eta * 1000).toISOString().substr(11, 8);
-                                document.getElementById(item.id + "_fps").innerText = item.fps;
+                                document.getElementById(item.id + "_fps").innerText = item.encode_fps;
 
                                 // Set worker name
                                 let worker_td = document.getElementById(item.id + "_worker")
