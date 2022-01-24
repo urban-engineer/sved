@@ -263,10 +263,10 @@ def index(request):
 
 
 def incomplete_encodes(request):
-    relevant_jobs = [x for x in distributor.models.File.objects.filter(status__in=["created", "queued", "in progress"])]
+    relevant_jobs = [x for x in distributor.models.File.objects.all().exclude(status="complete")]
 
-    jobs_queued = [x for x in relevant_jobs if x.status.lower() in ["created", "queued"]]
-    jobs_in_progress = [x for x in relevant_jobs if x.status.lower() == "in progress"]
+    jobs_queued = [x for x in relevant_jobs if x.status.lower() == "queued"]
+    jobs_in_progress = [x for x in relevant_jobs if x.status.lower() != "queued"]
 
     context = {
         "jobs_queued": jobs_queued,
@@ -406,6 +406,8 @@ def api_file(request, file_id: int):
         output_file = pathlib.Path(config.load_output_directory(), file.profile.name, file.name)
         log.debug("Saving encode of [{}] to [{}]".format(file.name, output_file))
         output_file.parent.mkdir(exist_ok=True, parents=True)
+        file.status = "uploading"
+        file.save()
 
         with output_file.open("wb") as f:
             while uploaded_file.remaining > 0:
@@ -447,7 +449,7 @@ def api_file(request, file_id: int):
         if request.headers.get("Worker", None):
             log.debug("Worker [{}] beginning processing of [{}]".format(request.headers.get("Worker"), file.name))
             file.worker = request.headers.get("Worker")
-            file.status = "in progress"
+            file.status = "downloading"
             file.progress = 0.0
             file.encode_fps = 0.0
             file.eta = -1
@@ -478,7 +480,7 @@ def api_profile_file_list(request, profile: str):
 
 @csrf_exempt
 def api_file_in_progress(request):
-    files = distributor.models.File.objects.filter(status__iexact="in progress")
+    files = distributor.models.File.objects.all().exclude(status="complete")
     serializer = distributor.serializers.FileSerializer(files, many=True)
     return JsonResponse(serializer.data, safe=False, json_dumps_params={"indent": 2})
 
