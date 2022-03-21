@@ -17,4 +17,5 @@ urlpatterns = [
     path("api/files/<str:profile>/", views.api_profile_file_list, name="api-profile-file-list"),
 
     path("api/profiles/", views.api_profile_list, name="api-profile-list"),
+    path("api/profiles/<int:profile_id>", views.api_profile_detail, name="api-profile-detail"),
 ]

@@ -67,11 +67,17 @@ def download_file(url: str, file_name: str) -> pathlib.Path:
     return local_file_path
 
 
-def write_profile(profile: str) -> pathlib.Path:
+def write_profile(profile_url: str) -> pathlib.Path:
+    response = requests.get(profile_url)
+
+    # TODO: loop this
+    if response.status_code != 200:
+        raise RuntimeError("Got code [{}] from [{}]".format(response.status_code, profile_url))
+
     handbrake_profile_format = {
         "PresetList": [
             {
-                "ChildrenArray": [json.loads(profile)],
+                "ChildrenArray": [json.loads(response.json()["definition"])],
                 "Folder": True,
                 "PresetName": "Custom",
                 "PresetDescription": "",
@@ -212,8 +218,10 @@ def callback(callback_channel: pika.adapters.blocking_connection.BlockingChannel
     decoded_message = json.loads(body.decode())
     log.info("Received [{}] ({}); beginning processing".format(decoded_message["name"], decoded_message["id"]))
 
+    base_url = decoded_message["file_url"].split("/api/")[0]
+
     input_file = download_file(decoded_message["file_url"], decoded_message["name"])
-    presets_file = write_profile(decoded_message["profile"])
+    presets_file = write_profile("{}/api/profiles/{}".format(base_url, decoded_message["profile"]))
     output_file = encode_file(
         input_file, decoded_message["profile_name"], presets_file, decoded_message["file_detail_url"], callback_channel
     )

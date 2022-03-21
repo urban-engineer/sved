@@ -72,7 +72,6 @@ def _queue_file(file: distributor.models.File, is_secure: bool) -> None:
     message_data = serializer.data.copy()
     message_data["file_detail_url"] = _get_file_detail_url(file.id, is_secure)
     message_data["file_url"] = _get_file_url(file.id, is_secure)
-    message_data["profile"] = json.dumps(json.loads(file.profile.definition))
 
     log.debug("Publishing message for [{}]".format(str(file.full_path())))
     rabbit_handler.send_message(message_data)
@@ -87,61 +86,6 @@ def _get_ffprobe_stats(file_path: pathlib.Path) -> dict:
         raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
 
     return json.loads("\n".join([x for x in out if x]))
-
-
-def _get_fame_count(file_path: pathlib.Path) -> int:
-    """
-    Helper to get the frame count of a provided video.  Better to use _get_duration_and_frame_count since it's
-    one invocation of ffprobe for more information.
-
-    :param file_path: path to video file to get info for
-    :return: count of frames as an int
-    """
-    ffprobe_template = "ffprobe -v error -select_streams v:0 -count_packets -show_entries"
-    ffprobe_template += " stream=nb_read_packets -of csv=p=0 \"{}\""
-    ffprobe_command = ffprobe_template.format(file_path)
-
-    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
-    if code != 0:
-        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
-
-    return int(out[0])
-
-
-def _get_duration(file_path: pathlib.Path) -> float:
-    """
-    Helper to get the duration (in seconds) of a provided video.  Better to use _get_duration_and_frame_count since it's
-    one invocation of ffprobe for more information.
-
-    :param file_path: path to video file to get info for
-    :return: duration of video as a float
-    """
-    ffprobe_template = "ffprobe -v error -select_streams v:0 -show_entries format=duration -of csv=p=0 \"{}\""
-    ffprobe_command = ffprobe_template.format(file_path)
-
-    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
-    if code != 0:
-        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
-
-    return float(out[0])
-
-
-def _get_duration_and_frame_count(file_path: pathlib.Path) -> (float, int):
-    """
-    Helper to get the duration (in seconds) and frame count of a provided video.
-
-    :param file_path: path to video file to get info for
-    :return: duration of video as a float and frame count as an int
-    """
-    ffprobe_template = "ffprobe -v error -count_packets -show_entries stream=nb_read_packets"
-    ffprobe_template += " -show_entries format=duration -of csv=p=0 \"{}\""
-    ffprobe_command = ffprobe_template.format(file_path)
-
-    code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
-    if code != 0:
-        raise RuntimeError("ffprobe on [{}] returned code [{}]".format(file_path.name, code))
-
-    return float(out[0]), int(out[1])
 
 
 def _get_file_info(file_path: pathlib.Path) -> dict:
@@ -473,6 +417,19 @@ def api_profile_file_list(request, profile: str):
 
     files = distributor.models.File.objects.filter(profile__name__iexact=profile)
     serializer = distributor.serializers.FileSerializer(files, many=True)
+    return JsonResponse(serializer.data, safe=False, json_dumps_params={"indent": 2})
+
+
+def api_profile_detail(request, profile_id: int):
+    if request.method != "GET":
+        return JsonResponse(
+            {"error": "this endpoint only supports GET requests, not [{}]".format(request.method)},
+            json_dumps_params={"indent": 2},
+            status=405
+        )
+
+    profile = get_object_or_404(distributor.models.Profile, pk=profile_id)
+    serializer = distributor.serializers.ProfileSerializer(profile)
     return JsonResponse(serializer.data, safe=False, json_dumps_params={"indent": 2})
 
 
