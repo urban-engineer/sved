@@ -27,7 +27,6 @@ class File(models.Model):
     name = models.CharField(max_length=256)
     path = models.CharField(max_length=256)
     duration = models.DecimalField(max_digits=9, decimal_places=3)
-    frame_count = models.IntegerField()
     frame_rate = models.DecimalField(max_digits=6, decimal_places=3, default=0.0)
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     status = models.TextField()

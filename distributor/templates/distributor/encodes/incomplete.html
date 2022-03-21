@@ -30,7 +30,6 @@
                     <th scope="col">ID</th>
                     <th scope="col">File Name</th>
                     <th scope="col">File Duration</th>
-                    <th scope="col">File Frame Count</th>
                     <th scope="col">File FPS</th>
                     <th scope="col">Profile</th>
                     <th scope="col">Status</th>
@@ -45,7 +44,6 @@
                         <td><code>{{ job.id }}</code></td>
                         <td><code>{{ job.name }}</code></td>
                         <td>{{ job.duration|seconds_to_duration }}</td>
-                        <td>{{ job.frame_count }}</td>
                         <td>{{ job.frame_rate }}</td>
                         <td><code>{{ job.profile.name }}</code></td>
                         <td id="{{ job.id }}_status_row">
@@ -210,9 +208,6 @@
                             let in_progress_row_duration_cell = in_progress_row.insertCell()
                             in_progress_row_duration_cell.innerText = new Date(Math.round(item.duration) * 1000).toISOString().substr(11, 8)
 
-                            // File Frame Count cell
-                            let in_progress_row_frame_count_cell = in_progress_row.insertCell()
-                            in_progress_row_frame_count_cell.innerText = item.frame_count
 
                             // File FPS cell
                             let in_progress_row_fps_cell = in_progress_row.insertCell()

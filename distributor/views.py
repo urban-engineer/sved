@@ -145,8 +145,8 @@ def _get_duration_and_frame_count(file_path: pathlib.Path) -> (float, int):
 
 
 def _get_file_info(file_path: pathlib.Path) -> dict:
-    ffprobe_template = "ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=avg_frame_rate"
-    ffprobe_template += " -show_entries stream=nb_read_packets -show_entries format=duration -print_format json \"{}\""
+    ffprobe_template = "ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -show_entries"
+    ffprobe_template += " format=duration -print_format json \"{}\""
     ffprobe_command = ffprobe_template.format(file_path)
 
     code, out, err = subprocess_handler.run_command(ffprobe_command, print_output=False)
@@ -162,7 +162,6 @@ def _get_file_info(file_path: pathlib.Path) -> dict:
 
     return {
         "frame_rate": round(float(frame_rate_raw.split("/")[0])/float(frame_rate_raw.split("/")[1]), 3),
-        "frame_count": int(output_dict["streams"][0]["nb_read_packets"]),
         "duration": float(output_dict["format"]["duration"])
     }
 
@@ -201,7 +200,6 @@ def index(request):
                 profile=profile,
                 status="created",
                 creation_datetime=timezone.now(),
-                frame_count=file_info["frame_count"],
                 frame_rate=file_info["frame_rate"]
             )
             file.save()
