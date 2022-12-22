@@ -1,5 +1,5 @@
 import datetime
-import pytz
+import zoneinfo
 
 from django import template
 from django.conf import settings
@@ -22,15 +22,16 @@ def seconds_to_duration(seconds: int) -> str:
         days = delta.split(", ")[0].split(" ")[0]
         hours, minutes, seconds = delta.split(", ")[1].split(":")
         hours = int(hours) + int(days) * 24
-        return "{}:{}:{}".format(str(hours).zfill(2), str(minutes).zfill(2), str(seconds).zfill(2))
+        return "{:2}:{:2}:{:2}".format(str(hours), str(minutes), str(seconds))
     else:
-        return delta
+        delta_split = [x.zfill(2) for x in delta.split(":")]
+        return "{:2}:{:2}:{:2}".format(delta_split[0], delta_split[1], delta_split[2])
 
 
 @register.filter
 def datetime_convert(dt: datetime.datetime) -> str:
-    local_tz = pytz.timezone(settings.TIME_ZONE)
-    return dt.replace(tzinfo=pytz.utc).astimezone(local_tz).strftime("%Y/%m/%d %R")
+    local_tz = zoneinfo.ZoneInfo(settings.TIME_ZONE)
+    return dt.replace(tzinfo=zoneinfo.ZoneInfo("UTC")).astimezone(local_tz).strftime("%Y/%m/%d %R")
 
 
 @register.filter
