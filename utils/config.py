@@ -3,6 +3,9 @@ import os
 import pathlib
 
 
+CONFIG = dict()
+
+
 def _get_config_directory() -> pathlib.Path:
     """
     Get the path to the config directory based off its location to this file.  Up two directories, then into config
@@ -33,18 +36,24 @@ def load_flags() -> dict:
     :return: Dictionary of flags to change behavior, see above for list of flags
     """
 
-    flags = _load_config_file().get("flags", {}).get("auto-delete", False)
+    global CONFIG
 
-    for key in flags.keys():
-        flags[key] = flags.get(key, os.environ.get(key.upper(), None))
+    if CONFIG:
+        return CONFIG
+    else:
+        flags = _load_config_file().get("flags", {})
 
-    for key, value in flags.items():
-        if value is None:
-            error_message = "Missing key [{}] in config file (flags->{})"
-            error_message += " or environment ({})"
-            raise ValueError(error_message.format(key, key, key.upper()))
+        for key in flags.keys():
+            flags[key] = flags.get(key, os.environ.get(key.upper(), None))
 
-    return flags
+        for key, value in flags.items():
+            if value is None:
+                error_message = "Missing key [{}] in config file (flags->{})"
+                error_message += " or environment ({})"
+                raise ValueError(error_message.format(key, key, key.upper()))
+
+        CONFIG = flags
+        return flags
 
 
 def load_rabbitmq_config() -> dict:

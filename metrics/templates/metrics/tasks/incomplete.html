@@ -1,0 +1,355 @@
+{% extends "bootstrap-base.html" %}
+
+{% load static %}
+{% load encodes_extras %}
+
+{% block title %}Incomplete Metrics{% endblock %}
+
+{% block navheader %}
+    {% include "metrics/navheader.html" %}
+{% endblock %}
+
+{% block main %}
+    <div class="d-flex">
+        <div class="p-2 flex-shrink-1">
+            {% comment %}
+                TODO: Move the collapse buttons to a general location rather than everyone referencing encodes
+            {% endcomment %}
+            <img role="button" data-bs-toggle="collapse" data-bs-target=".multi-collapse-in_progress"
+                 aria-expanded="true" aria-controls="in_progress-div queued-div"
+                 src="{% static 'encodes/collapse.png' %}" alt="Collapse button"/>
+        </div>
+        <div class="p-2 flex-shrink-1">
+            <h3>Incomplete Metrics</h3>
+        </div>
+    </div>
+
+    <div class="d-flex">
+        <div class="p-2 flex-shrink-1">
+            <img role="button" data-bs-toggle="collapse" data-bs-target="#in_progress-div" aria-expanded="true"
+                 aria-controls="in_progress-div" src="{% static 'encodes/collapse_small.png' %}" alt="Collapse button"/>
+        </div>
+        <div class="p-2 flex-shrink-1">
+            <h5>Metrics in progress</h5>
+        </div>
+    </div>
+    <div class="border border-secondary border-2 m-2 p-2 collapse multi-collapse-in_progress show" id="in_progress-div">
+        <table class="table table-sm mb-1 table-hover" id="in_progress-table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">File Name</th>
+                    <th scope="col">PSNR</th>
+                    <th scope="col">MS SSIM</th>
+                    <th scope="col">NEG Mode</th>
+                    <th scope="col">Subsample Rate</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Processing Framerate</th>
+                    <th scope="col">ETA</th>
+                    <th scope="col">Worker</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in jobs_in_progress %}
+                    <tr id="{{ task.id }}_row">
+                        <td><code>{{ task.id }}</code></td>
+                        <td><code>{{ task.source_file.name }}</code></td>
+                        <td><code>{{ task.psnr }}</code></td>
+                        <td><code>{{ task.ms_ssim }}</code></td>
+                        <td><code>{{ task.neg_mode }}</code></td>
+                        <td><code>{{ task.subsample_rate }}</code></td>
+                        <td id="{{ task.id }}_status_row">
+                            <div class="progress">
+                                <div id="{{ task.id }}_status" class="progress-bar" role="progressbar" style="width: {{ task.progress }}%" aria-valuenow="{{ task.progress }}" aria-valuemax="100">
+                                    {{ task.progress }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td id="{{ task.id }}_fps">
+                            {% if task.get_status_display == "In Progress" and task.seconds_remaining > 0 %}
+                                {{ task.processing_framerate }}
+                            {% endif %}
+                        </td>
+                        <td id="{{ task.id }}_eta">
+                            {% if task.get_status_display == "In Progress" and task.seconds_remaining > 0 %}
+                                {{ task.source_file.seconds_to_duration }}
+                            {% endif %}
+                        </td>
+                        <td id="{{ task.id }}_worker">{{ task.worker }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% comment %}
+        TODO: Javascript to add to this table when new jobs are queued
+    {% endcomment %}
+    <div class="d-flex">
+        <div class="p-2 flex-shrink-1">
+            <img role="button" data-bs-toggle="collapse" data-bs-target="#queued-div" aria-expanded="true"
+                 aria-controls="queued-div" src="{% static 'encodes/collapse_small.png' %}" alt="Collapse button"/>
+        </div>
+        <div class="p-2 flex-shrink-1">
+            <h5>Metrics queued</h5>
+        </div>
+    </div>
+    <div class="border border-secondary border-2 m-2 p-2 collapse multi-collapse-in_progress show" id="queued-div">
+        <table class="table table-sm mb-1 table-hover" id="queued-table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">File Name</th>
+                    <th scope="col">PSNR</th>
+                    <th scope="col">MS SSIM</th>
+                    <th scope="col">NEG Mode</th>
+                    <th scope="col">Subsample Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in jobs_queued %}
+                    <tr id="{{ task.id }}_row">
+                        <td><code>{{ task.id }}</code></td>
+                        <td><code>{{ task.source_file.name }}</code></td>
+                        <td><code>{{ task.psnr }}</code></td>
+                        <td><code>{{ task.ms_ssim }}</code></td>
+                        <td><code>{{ task.neg_mode }}</code></td>
+                        <td><code>{{ task.subsample_rate }}</code></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% comment %}
+    TODO: Move this to a dedicated javascript file
+{% endcomment %}
+<script type="text/javascript">
+    let poll_xhr;
+    let all_complete = false;
+
+    // This gets us the display version of the job status enum in a simple way.
+    // I'm not married to this but it works.
+    let job_status_list = {{ job_status_list|safe }};
+    (function(){
+        let poll = function(){
+            poll_xhr = $.ajax({
+                url: "{% url 'metrics:api-tasks-in-progress' %}",
+                type: "GET",
+                success: function(result) {
+                    // Setting to not refresh if there's nothing in progress.
+                    // Shouldn't probably do this, but just refresh your page if you add encodes >:(
+                    all_complete = true;
+                    result.forEach(function(item, index, array) {
+                        if (item.status !== {{ job_status.COMPLETE }}) {
+                            all_complete = false;
+                        }
+                    })
+
+                    // Getting all the in progress and queued job rows, just so we know if anything needs to be moved.
+                    let in_progress_table_ids = Array.prototype.slice.call(document.getElementById("in_progress-table").rows).map(a => a.id.split("_")[0]);
+                    let queued_table_ids = Array.prototype.slice.call(document.getElementById("queued-table").rows).map(a => a.id.split("_")[0]);
+                    let in_progress_api_ids = result.map(a => a.id.toString());
+
+                    // Mark things complete that are complete, since we only know that if it's in the in progress
+                    // table and not in the API response.
+                    let completed_tasks = in_progress_table_ids.filter(x => !in_progress_api_ids.includes(x) && x !== '')
+                    if (completed_tasks.length !== 0) {
+                        for (const element of completed_tasks) {
+                            document.getElementById(element + "_status_row").innerHTML = "complete"
+                            document.getElementById(element + "_eta").innerText = "";
+                        }
+                    }
+
+                    result.forEach(function(item, index, array) {
+                        //================================================================//
+                        // Row Creation (just handling new/updated tasks as they come in) //
+                        //================================================================//
+
+                        // If status is 'queued' and the item isn't in the 'Metrics queued' table, add it there
+                        // Else, If status isn't 'queued' and the item isn't in the 'Metrics in progress' table,
+                        //       add it there (and remove from 'Metrics queued' table if present)
+                        if (item.status === {{ job_status.QUEUED }} && !queued_table_ids.includes(item.id.toString())) {
+                            let queued_table_body = document.getElementById("queued-table").getElementsByTagName("tbody")[0];
+                            let queued_row = queued_table_body.insertRow();
+
+                            queued_row.id = item.id.toString() + "_row"
+
+                            // ID cell
+                            let queued_row_id_cell_content = document.createElement("code")
+                            queued_row_id_cell_content.innerText = item.id.toString()
+                            let queued_row_id_cell = queued_row.insertCell()
+                            queued_row_id_cell.appendChild(queued_row_id_cell_content)
+
+                            // Name cell
+                            let queued_row_name_cell_content = document.createElement("code")
+                            queued_row_name_cell_content.innerText = item.source_file.name.toString()
+                            let queued_row_name_cell = queued_row.insertCell()
+                            queued_row_name_cell.appendChild(queued_row_name_cell_content)
+
+                            // PSNR Cell
+                            let queued_row_psnr_cell_content = document.createElement("code")
+                            queued_row_psnr_cell_content.innerText = item.psnr.toString()
+                            let queued_row_psnr_cell = queued_row.insertCell()
+                            queued_row_psnr_cell.appendChild(queued_row_psnr_cell_content)
+
+                            // MS SSIM Cell
+                            let queued_row_ms_ssim_cell_content = document.createElement("code")
+                            queued_row_ms_ssim_cell_content.innerText = item.ms_ssim.toString()
+                            let queued_row_ms_ssim_cell = queued_row.insertCell()
+                            queued_row_ms_ssim_cell.appendChild(queued_row_ms_ssim_cell_content)
+
+                            // NEG Cell
+                            let queued_row_neg_mode_cell_content = document.createElement("code")
+                            queued_row_neg_mode_cell_content.innerText = item.neg_mode.toString()
+                            let queued_row_neg_mode_cell = queued_row.insertCell()
+                            queued_row_neg_mode_cell.appendChild(queued_row_neg_mode_cell_content)
+
+                            // Subsample Rate Cell
+                            let queued_row_subsample_rate_cell_content = document.createElement("code")
+                            queued_row_subsample_rate_cell_content.innerText = item.subsample_rate.toString()
+                            let queued_row_subsample_rate_cell = queued_row.insertCell()
+                            queued_row_subsample_rate_cell.appendChild(queued_row_subsample_rate_cell_content)
+
+                        } else if (item.status !== {{ job_status.QUEUED }} && queued_table_ids.includes(item.id.toString())) {
+                            let queued_row = document.getElementById(item.id.toString() + "_row")
+                            queued_row.remove()
+
+                            let in_progress_table_body = document.getElementById("in_progress-table").getElementsByTagName("tbody")[0];
+
+                            let in_progress_row = in_progress_table_body.insertRow();
+                            in_progress_row.id = item.id.toString() + "_row"
+
+                            // ID cell
+                            let in_progress_row_id_cell_content = document.createElement("code")
+                            in_progress_row_id_cell_content.innerText = item.id.toString()
+                            let in_progress_row_id_cell = in_progress_row.insertCell()
+                            in_progress_row_id_cell.appendChild(in_progress_row_id_cell_content)
+
+                            // Name cell
+                            let in_progress_row_name_cell_content = document.createElement("code")
+                            in_progress_row_name_cell_content.innerText = item.source_file.name.toString()
+                            let in_progress_row_name_cell = in_progress_row.insertCell()
+                            in_progress_row_name_cell.appendChild(in_progress_row_name_cell_content)
+
+                            // PSNR Cell
+                            let queued_row_psnr_cell_content = document.createElement("code")
+                            queued_row_psnr_cell_content.innerText = item.psnr.toString()
+                            let queued_row_psnr_cell = in_progress_row.insertCell()
+                            queued_row_psnr_cell.appendChild(queued_row_psnr_cell_content)
+
+                            // MS SSIM Cell
+                            let queued_row_ms_ssim_cell_content = document.createElement("code")
+                            queued_row_ms_ssim_cell_content.innerText = item.ms_ssim.toString()
+                            let queued_row_ms_ssim_cell = in_progress_row.insertCell()
+                            queued_row_ms_ssim_cell.appendChild(queued_row_ms_ssim_cell_content)
+
+                            // NEG Cell
+                            let queued_row_neg_mode_cell_content = document.createElement("code")
+                            queued_row_neg_mode_cell_content.innerText = item.neg_mode.toString()
+                            let queued_row_neg_mode_cell = in_progress_row.insertCell()
+                            queued_row_neg_mode_cell.appendChild(queued_row_neg_mode_cell_content)
+
+                            // Subsample Rate Cell
+                            let queued_row_subsample_rate_cell_content = document.createElement("code")
+                            queued_row_subsample_rate_cell_content.innerText = item.subsample_rate.toString()
+                            let queued_row_subsample_rate_cell = in_progress_row.insertCell()
+                            queued_row_subsample_rate_cell.appendChild(queued_row_subsample_rate_cell_content)
+
+                            // Status cell
+                            // (This is either the status text, or a progress bar if 'in progress')
+                            let in_progress_row_status_cell = in_progress_row.insertCell()
+                            in_progress_row_status_cell.id = item.id + "_status_row"
+
+                            if (item.status === {{ job_status.IN_PROGRESS }}) {
+                                let progress_div = document.createElement("div")
+                                progress_div.className = "progress"
+                                progress_div.innerHTML = "<div id=\"" + item.id + "_status\" class=\"progress-bar\" role=\"progressbar\" style=\"width: 0\" aria-valuenow=\"0\" aria-valuemax=\"100\"></div>"
+                                in_progress_row_status_cell.appendChild(progress_div)
+                            } else {
+                                in_progress_row_status_cell.innerText = job_status_list[item.status]
+                            }
+
+                            // FPS cell
+                            let in_progress_row_task_fps_cell = in_progress_row.insertCell()
+                            in_progress_row_task_fps_cell.id = item.id + "_fps"
+                            if (item["eta"] > 0) {
+                                in_progress_row_task_fps_cell.innerText = item["processing_framerate"]
+                            }
+
+                            // ETA cell
+                            let in_progress_row_eta_cell = in_progress_row.insertCell()
+                            in_progress_row_eta_cell.id = item.id + "_eta"
+                            if (item["eta"] > 0) {
+                                in_progress_row_eta_cell.innerText = item["eta"]
+                            }
+
+                            // Worker cell
+                            let in_progress_row_worker_cell = in_progress_row.insertCell()
+                            in_progress_row_worker_cell.innerText = item["worker"]
+                            in_progress_row_worker_cell.id = item.id + "_worker"
+
+                            // Remove id from queued_ids
+                            let id_index = queued_table_ids.indexOf(item.id)
+                            if (index > -1) {
+                                queued_table_ids.splice(id_index, 1);
+                            }
+                        }
+
+                        // Now handling updating information (i.e., a worker is working on the task)
+
+                        // If it's queued, there's no need to update anything.
+                        // If it's in progress, then we need to create/update the progress bar cell.
+                        let item_progress_bar = document.getElementById(item.id + "_status")
+                        if (item.status === {{ job_status.IN_PROGRESS }}) {
+                            if (item_progress_bar === null) {
+                                let progress_node = document.createElement("div")
+                                progress_node.className = "progress"
+
+                                let progress_bar_node = document.createElement("div")
+                                progress_bar_node.id = item.id + "_status"
+                                progress_bar_node.className = "progress-bar"
+                                progress_bar_node.role = "progressbar"
+                                progress_bar_node.style.cssText = "width: 0%"
+                                progress_bar_node.setAttribute("aria-valuenow", "0")
+                                progress_bar_node.setAttribute("aria-valuemax", "100")
+
+                                progress_node.appendChild(progress_bar_node)
+
+                                let status_node = document.getElementById(item.id + "_status_row")
+                                status_node.innerText = ""
+                                status_node.appendChild(progress_node)
+
+                            } else if (item_progress_bar.getAttribute("aria-valuenow") !== item.progress) {
+                                item_progress_bar.setAttribute("aria-valuenow", item.progress);
+                                item_progress_bar.setAttribute("style", "width: " + item.progress + "%");
+                                item_progress_bar.innerText = item.progress + "%";
+                                document.getElementById(item.id + "_eta").innerText = new Date(item.seconds_remaining * 1000).toISOString().slice(11, 19);
+                                document.getElementById(item.id + "_fps").innerText = item["processing_framerate"];
+
+                                // Set worker name
+                                let worker_td = document.getElementById(item.id + "_worker")
+                                if (worker_td === null) {
+                                    console.log("Worker TD null for [" + item.id + "]")
+                                }
+
+                                if (worker_td.innerText !== item["worker"]) {
+                                    worker_td.innerText = item["worker"]
+                                }
+                            }
+                        }
+                    })
+                }
+            });
+        };
+
+        let refreshIntervalId = setInterval(function() {
+            poll();
+            if(all_complete) {
+                clearInterval(refreshIntervalId);
+            }
+        }, 1000);
+    })();
+</script>
+
+{% endblock %}

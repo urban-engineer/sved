@@ -1,10 +1,4 @@
-import typing
-
 import requests
-import time
-import typing
-
-from utils import log
 
 
 def send_get_request(url: str, **kwargs) -> requests.Response:

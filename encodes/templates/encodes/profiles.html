@@ -1,0 +1,53 @@
+{% extends "bootstrap-base.html" %}
+
+{% load static %}
+
+{% block title %}Profile List{% endblock %}
+
+{% block navheader %}
+    {% include "encodes/navheader.html" %}
+{% endblock %}
+
+{% block main %}
+    <h3>Profiles</h3>
+
+    <br>
+    <div class="border border-secondary border-2 m-2 p-2">
+        <table class="table table-sm mb-1 table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th class="text-center" colspan="2" scope="col"></th>
+                    <th class="text-center" colspan="5" scope="col">Encoder Settings</th>
+                </tr>
+                <tr>
+                    <th scope="col">Profile</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Encoder</th>
+                    <th scope="col">Encode Type</th>
+                    <th scope="col">Encode Value</th>
+                    <th scope="col">Preset</th>
+                    <th scope="col">Tune</th>
+                    <th scope="col">Allow Main Audio 5.1</th>
+                    <th scope="col">Encode List</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for profile in profiles %}
+                    <tr>
+                        <td><code>{{ profile.name }}</code></td>
+                        <td><code>{{ profile.description }}</code></td>
+                        <td><code>{{ profile.codec }}</code></td>
+                        <td><code>{{ profile.encode_type }}</code></td>
+                        <td><code>{{ profile.encode_value }}</code></td>
+                        <td><code>{{ profile.encoder_preset }}</code></td>
+                        <td><code>{{ profile.encoder_tune }}</code></td>
+                        <td><code>{{ profile.keep_original_main_audio }}</code></td>
+                        <td></td>
+                        {% comment %} <td><a href="{% url 'distributor:completed_encodes_by_profile' profile.id %}">Encodes</a></td> {% endcomment %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% endblock %}

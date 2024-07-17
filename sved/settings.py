@@ -11,12 +11,13 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 import os
+import pathlib
 import platform
+import socket
 
-from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,7 +29,12 @@ SECRET_KEY = 'django-insecure-$08fb10x^1_d(ag&4d*fma4r85v7zik@-%7son8)^@w_wrx@^3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["sleipnir", "gungnir", "192.168.1.175", os.environ.get("HOSTNAME", platform.node())]
+ALLOWED_HOSTS = ["gungnir", "192.168.1.226", os.environ.get("HOSTNAME", platform.node())]
+
+# IP for workers to communicate with
+# Necessary for when I'm on VPN and need to deal with VPN weirdness
+# (e.g. socket.gethostbyname returning my IP on VPN rather than local IP)
+MANAGER_ADDRESS = os.environ.get("MANAGER_ADDRESS", socket.gethostbyname(socket.gethostname()))
 
 
 # Application definition
@@ -40,7 +46,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'distributor.apps.DistributorConfig'
+    'distributor.apps.DistributorConfig',
+    'encodes.apps.EncodesConfig',
+    'metrics.apps.MetricsConfig'
 ]
 
 MIDDLEWARE = [
@@ -58,8 +66,7 @@ ROOT_URLCONF = 'sved.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -67,7 +74,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-            ],
+            ]
         },
     },
 ]

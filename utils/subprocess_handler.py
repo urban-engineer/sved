@@ -1,12 +1,13 @@
-import typing
+import shlex
 import subprocess
+import typing
 
 from utils import log
 
 
 def run_command(command: str, print_output=False) -> (int, typing.List[str], typing.List[str]):
     process = subprocess.Popen(
-        command,
+        shlex.split(command),
         universal_newlines=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         encoding="utf-8", errors="backslashreplace"

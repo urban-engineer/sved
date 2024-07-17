@@ -2,93 +2,13 @@
 
 {% load static %}
 
-{% block title %}SVED{% endblock %}
+{% block title %}SVED File Distribution{% endblock %}
+
+{% block navheader %}
+    {% include "distributor/navheader.html" %}
+{% endblock %}
 
 {% block main %}
-    <div class="container-fluid">
-        <form action="{% url 'distributor:index' %}" method="post">
-            {% comment %}
-                TODO: checkboxes that support shift clicking for selecting multiple files at once
-                (right now it works, but it highlights all the letters too, doesn't look good)
-
-                TODO: Show frame count in a table when adding files.
-            {% endcomment %}
-
-            {% csrf_token %}
-            <div class="row align-items-start">
-                <div class="col">
-                    <table class="table table-bordered table-sm">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col">Encode?</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Size</th>
-                                <th scope="col">Duration</th>
-                                <th scope="col">Bit Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for file in files %}
-                                <tr>
-                                    <td class="w-auto">
-                                        <div class="form-check">
-                                            <input type="checkbox" id="{{ file.name }}_id" name="files_to_scan" value="{{ file.name }}">
-                                        </div>
-                                    </td>
-                                    <td class="w-auto"><label for="{{ file.name }}_id">{{ file.name }}</label></td>
-                                    <td class="w-auto">{{ file.size }}</td>
-                                    <td class="w-auto">{{ file.duration }}</td>
-                                    <td class="w-auto">{{ file.bit_rate }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="col-md-auto">
-                    <div class="row">
-                        <div class="col">
-                            {% for profile in profiles %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="profile_{{ profile.id }}" name="profile" value="{{ profile.id }}">
-                                    <label class="form-check-label" for="profile_{{ profile.id }}">{{ profile.name }}</label>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            <input type="submit" class="btn btn-primary" value="Add Job">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-    <script type="text/javascript">
-        (function () { // encapsulating variables with IIFE
-            let lastcheck = null // no checkboxes clicked yet
-
-            // get desired checkboxes
-            let checkboxes = document.getElementsByName("files_to_scan")
-
-            // loop over checkboxes to add event listener
-            Array.prototype.forEach.call(checkboxes, function (cbx, idx) {
-                cbx.addEventListener('click', function (evt) {
-
-                    // test for shift key, not first checkbox, and not same checkbox
-                    if ( evt.shiftKey && null !== lastcheck && idx !== lastcheck ) {
-
-                        // get range of checks between last-checkbox and shift-checkbox
-                        // Math.min/max does our sorting for us
-                        Array.prototype.slice.call(checkboxes, Math.min(lastcheck, idx), Math.max(lastcheck, idx))
-                            // and loop over each
-                            .forEach(function (ccbx) {
-                                ccbx.checked = true
-                        })
-                    }
-                    lastcheck = idx // set this checkbox as last-checked for later
-              })
-          })
-        }())
-    </script>
+    <h1>This page shouldn't be reachable</h1>
+    <p>{% lorem %}</p>
 {% endblock %}

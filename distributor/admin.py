@@ -3,16 +3,17 @@ from django.contrib import admin
 import distributor.models
 
 
-# Customizing Admin Panel
+########################################################################################################################
+# Admin objects
+########################################################################################################################
 class FileAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "name", "duration", "profile", "status", "worker", "progress", "encode_fps",
-        "creation_datetime", "encode_start_datetime", "encode_end_datetime"
+        "id", "name", "directory", "size", "duration", "frame_rate", "frames"
     )
+    ordering = ("pk", )
 
 
 ########################################################################################################################
 # Default Admin models
 ########################################################################################################################
-admin.site.register(distributor.models.Profile)
 admin.site.register(distributor.models.File, FileAdmin)

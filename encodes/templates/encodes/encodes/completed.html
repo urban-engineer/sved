@@ -1,14 +1,18 @@
 {% extends "bootstrap-base.html" %}
 
 {% load static %}
-{% load distributor_extras %}
+{% load encodes_extras %}
 
 {% block title %}Completed Encodes{% endblock %}
+
+{% block navheader %}
+    {% include "encodes/navheader.html" %}
+{% endblock %}
 
 {% block main %}
     <div class="d-flex">
         <div class="p-2 flex-shrink-1">
-            <img role="button" data-bs-toggle="collapse" data-bs-target=".multi-collapse" aria-expanded="true" aria-controls="{{ profile_tables }}" src="{% static 'distributor/collapse.png' %}" alt="Collapse button">
+            <img role="button" data-bs-toggle="collapse" data-bs-target=".multi-collapse" aria-expanded="true" aria-controls="{{ profile_tables }}" src="{% static 'encodes/collapse.png' %}" alt="Collapse button">
         </div>
         <div class="p-2 flex-shrink-1">
             <h3>Completed Encodes</h3>
@@ -18,7 +22,7 @@
     {% for profile, profile_information in jobs_complete.items %}
         <div class="d-flex">
             <div class="p-2 flex-shrink-1">
-                <img role="button" data-bs-toggle="collapse" data-bs-target="#table_{{ profile_information.id }}" aria-expanded="true" aria-controls="table_{{ profile_information.id }}" src="{% static 'distributor/collapse_small.png' %}" alt="Collapse button">
+                <img role="button" data-bs-toggle="collapse" data-bs-target="#table_{{ profile_information.id }}" aria-expanded="true" aria-controls="table_{{ profile_information.id }}" src="{% static 'encodes/collapse_small.png' %}" alt="Collapse button">
             </div>
             <div class="p-2 flex-shrink-1">
                 <h5>{{ profile }}</h5>
@@ -38,20 +42,24 @@
                         <th scope="col">ID</th>
                         <th scope="col">File Name</th>
                         <th scope="col">File Duration</th>
+                        <th scope="col">Encode Type</th>
+                        <th scope="col">Encode Value</th>
                         <th scope="col">Encode Duration</th>
                         <th scope="col">Conversion Rate</th>
                         <th scope="col">Worker</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for job in profile_information.jobs %}
-                        <tr id="{{ job.id }}_row">
-                            <td><code>{{ job.id }}</code></td>
-                            <td><code>{{ job.name }}</code></td>
-                            <td>{{ job.duration|seconds_to_duration }}</td>
-                            <td>{{ job.encode_start_datetime|datetime_duration:job.encode_end_datetime }}</td>
-                            <td><code>{% conversion_rate job.duration job.encode_start_datetime job.encode_end_datetime %}</code></td>
-                            <td>{{ job.worker }}</td>
+                    {% for task in profile_information.jobs %}
+                        <tr id="{{ task.id }}_row">
+                            <td><code>{{ task.id }}</code></td>
+                            <td><code>{{ task.source_file.name }}</code></td>
+                            <td>{{ task.source_file.seconds_to_duration }}</td>
+                            <td><code>{{ task.encode_type }}</code></td>
+                            <td><code>{{ task.encode_value }}</code></td>
+                            <td>{{ task.encode_start_datetime|datetime_duration:task.encode_end_datetime }}</td>
+                            <td><code>{% conversion_rate task.source_file.duration task.encode_start_datetime task.encode_end_datetime %}x</code></td>
+                            <td>{{ task.worker }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
